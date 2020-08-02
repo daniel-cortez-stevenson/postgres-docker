@@ -1,0 +1,51 @@
+# Use postgres/example user/password credentials
+version: '3.8'
+
+services:
+
+  db:
+    image: postgres:9.4
+    command: [ '-c', 'shared_buffers=256MB', '-c', 'max_connections=200', '-c', 'checkpoint_segments=12' ]
+    ports:
+      - '5432:5432'
+    volumes:
+        - ./data:/input-data:ro
+        - ./postgres/entrypoint-sql:/docker-entrypoint-initdb.d/:ro
+        - pgdata:/var/lib/postgresql/data
+    shm_size: '256m'
+    env_file: ./.env
+    environment:
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_DB: ${PGDATABASE}
+    networks:
+      - 'pg'
+    restart: 'always'
+
+  metrics:
+    image: rapidloop/pgmetrics
+    env_file: ./.env
+    environment:
+      PGHOST: 'db'
+    networks:
+      - 'pg'
+    depends_on:
+      - 'db'
+    restart: 'always'
+
+  client:
+    build: ./client
+    env_file: ./.env
+    environment:
+      PGHOST: 'db'
+    networks:
+      - 'pg'
+    depends_on:
+      - 'db'
+    restart: 'unless-stopped'
+
+volumes:
+  pgdata:
+
+networks:
+  pg:
